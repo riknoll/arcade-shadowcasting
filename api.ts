@@ -1,3 +1,4 @@
+//% color="#02729c"
 namespace shadowcasting {
     //% blockId=shadowcasting_setAnchor
     //% block="set shadowcasting anchor $sprite"
