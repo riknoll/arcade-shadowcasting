@@ -1,6 +1,6 @@
 {
     "name": "arcade-shadowcasting",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "files": [
         "shadowcasting.ts",
         "api.ts",
