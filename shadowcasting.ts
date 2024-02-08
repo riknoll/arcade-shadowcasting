@@ -57,6 +57,7 @@ namespace shadowcasting {
         }
 
         set(col: number, row: number) {
+            if (col < 0 || col >= this.width || row < 0 || row >= this.height) return;
             const cellIndex = col + this.width * row;
             const index = cellIndex >> 3;
             const offset = cellIndex & 7;
@@ -72,7 +73,7 @@ namespace shadowcasting {
     }
 
     class Point {
-        constructor(public x: number, public y: number) {}
+        constructor(public x: number, public y: number) { }
     }
 
     class Quadrant {
@@ -159,6 +160,8 @@ namespace shadowcasting {
         if (!location) return false;
 
         const rotated = quadrant.transform(location);
+        if (tilemap.isOutsideMap(rotated.x, rotated.y)) return true;
+
         return tilemap.isWall(rotated.x, rotated.y);
     }
 
@@ -166,6 +169,7 @@ namespace shadowcasting {
         if (!location) return false;
 
         const rotated = quadrant.transform(location);
+        if (tilemap.isOutsideMap(rotated.x, rotated.y)) return false;
         return !tilemap.isWall(rotated.x, rotated.y);
     }
 
@@ -193,7 +197,7 @@ namespace shadowcasting {
                 }
                 if (isFloor(prevTile, tilemap, quadrant) && isWall(tile, tilemap, quadrant)) {
                     const nextRow = currentRow.nextRow();
-                    nextRow.endSlope = slope(currentRow.depth, tile.x);
+                    nextRow.endSlope = slope(nextRow.depth, tile.x);
                     rows.push(nextRow);
                 }
                 prevTile = tile;
