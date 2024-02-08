@@ -1,4 +1,13 @@
 namespace shadowcasting {
+    export enum ShadowCastingMode {
+        //$ block="fill with dither"
+        Dither,
+        //% block="fill with color"
+        Fill,
+        //% block="fill with image"
+        Image,
+    }
+
     class ShadowCastingState {
         anchor: Sprite;
         color: number;
@@ -6,9 +15,11 @@ namespace shadowcasting {
 
         renderable: scene.Renderable;
         enabled: boolean;
+        mode: ShadowCastingMode;
 
         constructor() {
             this.color = 15
+            this.mode = ShadowCastingMode.Dither;
             this.renderable = scene.createRenderable(100, () => {
                 if (!this.enabled || !game.currentScene().tileMap || !this.anchor) return
                 drawShadows(this.anchor.tilemapLocation(), game.currentScene().tileMap.data)
@@ -239,10 +250,12 @@ namespace shadowcasting {
             scan(quadrant, firstRow, tilemap, mask);
         }
 
-        const shadowImage = _state().shadowImage;
-        const color = _state().color;
+        const state = _state();
 
-        if (shadowImage) {
+        const shadowImage = state.shadowImage;
+        const color = state.color;
+
+        if (shadowImage && state.mode === ShadowCastingMode.Image) {
             for (let x = x0; x <= xn; ++x) {
                 for (let y = y0; y <= yn; ++y) {
                     if (!mask.get(x, y)) {
@@ -256,16 +269,96 @@ namespace shadowcasting {
             }
         }
         else if (color) {
-            for (let x = x0; x <= xn; ++x) {
-                for (let y = y0; y <= yn; ++y) {
-                    if (!mask.get(x, y)) {
-                        screen.fillRect(
-                            ((x - x0) << tilemap.scale) - offsetX,
-                            ((y - y0) << tilemap.scale) - offsetY,
-                            1 << tilemap.scale,
-                            1 << tilemap.scale,
-                            color
-                        )
+            if (state.mode === ShadowCastingMode.Dither) {
+                // Track shadow level in an image
+                let ditherField = image.create(xn - x0 + 1, yn - y0 + 1);
+                for (let x = x0; x <= xn; ++x) {
+                    for (let y = y0; y <= yn; ++y) {
+                        if (tilemap.isWall(x, y)) {
+                            // Walls are set to 15 so that they can't cast light
+                            ditherField.setPixel(x - x0, y - y0, 15);
+                        }
+                        else if (mask.get(x, y)) {
+                            ditherField.setPixel(x - x0, y - y0, 1);
+                        }
+                    }
+                }
+
+                // Spread light to adjacent tiles
+                for (let i = 1; i < 14; i++) {
+                    let didChange = false;
+                    for (let x = 0; x <= ditherField.width; ++x) {
+                        for (let y = 0; y <= ditherField.height; ++y) {
+                            if (ditherField.getPixel(x, y) === i) {
+                                if (ditherField.getPixel(x - 1, y) === 0) {
+                                    ditherField.setPixel(x - 1, y, i + 1)
+                                    didChange = true;
+                                }
+                                if (ditherField.getPixel(x + 1, y) === 0) {
+                                    ditherField.setPixel(x + 1, y, i + 1)
+                                    didChange = true;
+                                }
+                                if (ditherField.getPixel(x, y - 1) === 0) {
+                                    ditherField.setPixel(x, y - 1, i + 1)
+                                    didChange = true;
+                                }
+                                if (ditherField.getPixel(x, y + 1) === 0) {
+                                    ditherField.setPixel(x, y + 1, i + 1)
+                                    didChange = true;
+                                }
+                            }
+                        }
+                    }
+                    if (!didChange) break;
+                }
+
+                ditherField.replace(0, 15)
+
+                // Fix the walls
+                for (let x = x0; x <= xn; ++x) {
+                    for (let y = y0; y <= yn; ++y) {
+                        if (tilemap.isWall(x, y) && !mask.get(x, y)) {
+                            const xx = x - x0;
+                            const yy = y - y0;
+
+                            let minNeighbor = 15;
+                            if (xx > 0) minNeighbor = Math.min(minNeighbor, ditherField.getPixel(xx - 1, yy))
+                            if (xx < ditherField.width - 1) minNeighbor = Math.min(minNeighbor, ditherField.getPixel(xx + 1, yy))
+                            if (yy > 0) minNeighbor = Math.min(minNeighbor, ditherField.getPixel(xx, yy - 1))
+                            if (yy < ditherField.height - 1) minNeighbor = Math.min(minNeighbor, ditherField.getPixel(xx, yy + 1))
+                            ditherField.setPixel(x - x0, y - y0, minNeighbor + 2);
+                        }
+                    }
+                }
+
+                for (let x = x0; x <= xn; ++x) {
+                    for (let y = y0; y <= yn; ++y) {
+                        if (!mask.get(x, y)) {
+                            const depth = ditherField.getPixel(x - x0, y - y0);
+                            ditherRect(
+                                ((x - x0) << tilemap.scale) - offsetX,
+                                ((y - y0) << tilemap.scale) - offsetY,
+                                1 << tilemap.scale,
+                                1 << tilemap.scale,
+                                (depth * 2.5) | 0,
+                                color
+                            )
+                        }
+                    }
+                }
+            }
+            else {
+                for (let x = x0; x <= xn; ++x) {
+                    for (let y = y0; y <= yn; ++y) {
+                        if (!mask.get(x, y)) {
+                            screen.fillRect(
+                                ((x - x0) << tilemap.scale) - offsetX,
+                                ((y - y0) << tilemap.scale) - offsetY,
+                                1 << tilemap.scale,
+                                1 << tilemap.scale,
+                                color
+                            )
+                        }
                     }
                 }
             }

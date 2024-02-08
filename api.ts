@@ -17,6 +17,13 @@ namespace shadowcasting {
         _state().setColor(color);
     }
 
+    //% blockId=shadowcasting_setShadowMode
+    //% block="set shadowcasting mode $mode"
+    //% weight=85
+    export function setShadowMode(mode: ShadowCastingMode) {
+        _state().mode = mode;
+    }
+
     //% blockId=shadowcasting_setShadowImage
     //% block="set shadowcasting tile image $image"
     //% image.shadow=tileset_tile_picker
